@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 
-__all__ = ["Spectra", "rbind"]
+__all__ = ["Spectra"]
 
 
 class Spectra:
@@ -183,7 +183,7 @@ class Spectra:
 
         # Prepare colors and labels
         if color is None:
-            labels = pd.Series(["spc"] * self.nspc)
+            labels = pd.Series(["spc"] * self.nspc, dtype="category")
         else:
             labels = (
                 self._parse_string_or_column_param(color)
