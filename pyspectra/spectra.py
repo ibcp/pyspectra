@@ -7,7 +7,6 @@ import warnings
 import numpy as np
 import pandas as pd
 
-
 __all__ = ["Spectra"]
 
 
@@ -129,6 +128,18 @@ class Spectra:
         """
         return self.spc.shape[0]
 
+    def copy(self):
+        return Spectra(
+            spc = self.spc.copy(),
+            data = self.data.copy()
+            )
+
+    def deepcopy(self):
+        return Spectra(
+            spc = self.spc.deepcopy(),
+            data = self.data.deepcopy()
+            )
+
     def _parse_string_or_column_param(self, param):
         if isinstance(param, str) and (param in self.data.columns):
             return self.data[param]
@@ -159,7 +170,7 @@ class Spectra:
         legend_params={},
         title_params={},
         **kwargs
-    ):
+        ):
         import matplotlib.pyplot as plt
         from matplotlib.lines import Line2D
 
@@ -293,6 +304,22 @@ class Spectra:
         else:
             raise ValueError("Unknown output format.")
 
+    def straightline(self, wl_range=None, inplace=False):
+        if wl_range is None:
+            wl_range = (np.min(self.wl), np.max(self.wl))
+        assert isinstance(wl_range, (list, tuple)) and (len(wl_range) == 2)
+
+        sub_spc = self[:, :, wl_range[0]:wl_range[1]].spc.copy()
+        sub_spc.iloc[:,1:-1] = np.nan
+        sub_spc.interpolate(method='index', axis=1, inplace=True, limit_area='inside')
+        if inplace:
+            result = self
+        else:
+            result = self.copy()
+        idx = pd.IndexSlice
+        result.spc.loc[:,idx[wl_range[0]:wl_range[1]]] = sub_spc
+        return result
+
     def __getitem__(self, given):
         if (type(given) == tuple) and (len(given) == 3):
             rows, cols, wls = (
@@ -313,51 +340,130 @@ class Spectra:
     def __str__(self):
         return str(self.shape)
 
-
-"""
-    def __iter__(self):
-        pass
     # -----------------------------------------------------------------------
-    # Arithmetic operations +, -, *, /, **, abs
+    # Arithmetic operations +, -, *, /, **, abs, round, ceil, etc.
     def __add__(self, other):
-        pass
+        return Spectra(
+            spc=self.spc.values.__add__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
     def __sub__(self, other):
-        pass
+        return Spectra(
+            spc=self.spc.values.__sub__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
     def __mul__(self, other):
-        pass
+        return Spectra(
+            spc=self.spc.values.__mul__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
     def __truediv__(self, other):
-        pass
+        return Spectra(
+            spc=self.spc.values.__truediv__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
-    def __pow__(self, other[, modulo]):
-        pass
+    def __pow__(self, other):
+        return Spectra(
+            spc=self.spc.values.__pow__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
     def __radd__(self, other):
-        pass
+        return Spectra(
+            spc=self.spc.values.__radd__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
     def __rsub__(self, other):
-        pass
+        return Spectra(
+            spc=self.spc.values.__rsub__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
     def __rmul__(self, other):
-        pass
+        return Spectra(
+            spc=self.spc.values.__rmul__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
     def __rtruediv__(self, other):
-        pass
+        return Spectra(
+            spc=self.spc.values.__rtruediv__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
     def __iadd__(self, other):
-        pass
+        return Spectra(
+            spc=self.spc.values.__iadd__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
     def __isub__(self, other):
-        pass
+        return Spectra(
+            spc=self.spc.values.__isub__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
     def __imul__(self, other):
-        pass
+        return Spectra(
+            spc=self.spc.values.__imul__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
     def __itruediv__(self, other):
-        pass
+        return Spectra(
+            spc=self.spc.values.__itruediv__(other),
+            wl=self.wl,
+            data=self.data
+            )
 
     def __abs__(self):
-        pass
-"""
+        return Spectra(
+            spc=self.spc.values.__abs__(other),
+            wl=self.wl,
+            data=self.data
+            )
+
+    def __round__(self, n):
+        return Spectra(
+            spc=self.spc.values.__round__(n),
+            wl=self.wl,
+            data=self.data
+            )
+
+    def __floor__(self):
+        return Spectra(
+            spc=self.spc.values.__floor__(),
+            wl=self.wl,
+            data=self.data
+            )
+
+    def __ceil__(self):
+        return Spectra(
+            spc=self.spc.values.__ceil__(),
+            wl=self.wl,
+            data=self.data
+            )
+
+    def __trunc__(self):
+        return Spectra(
+            spc=self.spc.values.__trunc__(),
+            wl=self.wl,
+            data=self.data
+            )
