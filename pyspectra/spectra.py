@@ -20,7 +20,7 @@ class Spectra:
     --------
     """
 
-    def __init__(self, spc=None, wl=None, data=None, labels=None, description=None):
+    def __init__(self, spc=None, wl=None, data=None, labels=None, keep_indexes=True, description=None):
 
         # Parse spc and wl
         if spc is None and wl is None:
@@ -63,9 +63,9 @@ class Spectra:
 
         # Parse data
         if data is None:
-            data = pd.DataFrame(index=range(self.spc.shape[0]))
+            data = pd.DataFrame(index=self.spc.index)
         elif isinstance(data, dict):
-            data = pd.DataFrame(data)
+            data = pd.DataFrame(data, index=self.spc.index)
         self.data = data
 
         # Parse labels
@@ -97,8 +97,12 @@ class Spectra:
             )
 
         # Reset indexes to make them the same
-        self.spc.reset_index(drop=True, inplace=True)
-        self.data.reset_index(drop=True, inplace=True)
+        if not np.array_equal(np.array(self.spc.index), np.array(self.data.index)):
+            if keep_indexes:
+                raise ValueError("spc and data have different indexes. Make them equal or set keep_indexes to False")
+            else:
+                self.spc.reset_index(drop=True, inplace=True)
+                self.data.reset_index(drop=True, inplace=True)
 
     @property
     def wl(self):
@@ -158,6 +162,13 @@ class Spectra:
                 "Incorrect parameter. It must be either a string of a data column name or pd.Series / np.array / list / tuple of lenght equal to number of spectra."
             )
 
+    def _is_empty_slice(self, param):
+        return \
+            isinstance(param, slice) and \
+            (param.start is None) and \
+            (param.stop  is None) and \
+            (param.step  is None)
+
     def plot(
         self,
         columns=None,
@@ -181,13 +192,13 @@ class Spectra:
             row = self._parse_string_or_column_param(
                 rows
             ).cat.remove_unused_categories()
-        row = row.cat.add_categories("NA").fillna("NA").cat.remove_unused_categories()
+        row = row.cat.add_categories("NA").fillna("NA").cat.remove_unused_categories().reset_index(drop=True)
 
         if columns is None:
             col = pd.Series(np.repeat("dummy", self.nspc), dtype="category")
         else:
             col = self._parse_string_or_column_param(columns)
-        col = col.cat.add_categories("NA").fillna("NA").cat.remove_unused_categories()
+        col = col.cat.add_categories("NA").fillna("NA").cat.remove_unused_categories().reset_index(drop=True)
 
         nrows = len(row.cat.categories)
         ncols = len(col.cat.categories)
@@ -198,6 +209,7 @@ class Spectra:
         else:
             labels = (
                 self._parse_string_or_column_param(color)
+                .astype('category')
                 .cat.add_categories("NA")
                 .fillna("NA")
                 .cat.remove_unused_categories()
@@ -234,7 +246,7 @@ class Spectra:
             for j, vcol in enumerate(col.cat.categories):
                 # Filter all spectra related to the current subplot
                 rowfilter = (row == vrow) & (col == vcol)
-
+                rowfilter = rowfilter.tolist()
                 if np.any(rowfilter):
                     self.spc.loc[rowfilter, :].T.plot.line(
                         ax=ax[i, j], color=colors[rowfilter], **kwargs
@@ -304,21 +316,37 @@ class Spectra:
         else:
             raise ValueError("Unknown output format.")
 
-    def straightline(self, wl_range=None, inplace=False):
-        if wl_range is None:
-            wl_range = (np.min(self.wl), np.max(self.wl))
-        assert isinstance(wl_range, (list, tuple)) and (len(wl_range) == 2)
-
-        sub_spc = self[:, :, wl_range[0]:wl_range[1]].spc.copy()
-        sub_spc.iloc[:,1:-1] = np.nan
-        sub_spc.interpolate(method='index', axis=1, inplace=True, limit_area='inside')
+    def approx_na(self, inplace=False, **kwargs):
+        kwargs.pop('axis', None)
+        method = kwargs.pop('method', 'index')
         if inplace:
-            result = self
+            self.spc.interpolate(method=method, axis=1, inplace=True, **kwargs)
         else:
             result = self.copy()
-        idx = pd.IndexSlice
-        result.spc.loc[:,idx[wl_range[0]:wl_range[1]]] = sub_spc
-        return result
+            result.spc.interpolate(method=method, axis=1, inplace=True, **kwargs)
+            return result
+
+    def __setitem__(self, given, value):
+        if (type(given) == tuple) and (len(given) == 3):
+            rows, cols, wls = (
+                [x]
+                if (np.size(x) == 1) and (not isinstance(x, (slice, list, tuple)))
+                else x
+                for x in given
+            )
+            if self._is_empty_slice(cols) and not self._is_empty_slice(wls):
+                idx = pd.IndexSlice
+                self.spc.loc[rows, idx[wls]] = value
+            elif not self._is_empty_slice(cols) and self._is_empty_slice(wls):
+                self.data.loc[rows, cols] = value
+            else:
+                raise ValueError(
+                    "Incorrect subset value for assignment. Either of data columns for wavelengths indexes must be `:`"
+                )
+        else:
+            raise ValueError(
+                "Incorrect subset value. Provide 3 values in format <row, column, wl>."
+            )
 
     def __getitem__(self, given):
         if (type(given) == tuple) and (len(given) == 3):
@@ -334,7 +362,7 @@ class Spectra:
             )
         else:
             raise ValueError(
-                "Incorrect subset value. Provide 3 values in format <row, column, wl>."
+                "Incorrect subset value. Provide 3 values in format <row:column:wl>."
             )
 
     def __str__(self):
