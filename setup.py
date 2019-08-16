@@ -1,9 +1,9 @@
-from setuptools import setup
+import setuptools
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-setup(
+setuptools.setup(
     name='pyspectra',
     version='0.0.0',
     description='A python package for working with spectral data',
@@ -33,7 +33,7 @@ setup(
     python_requires='~=3.6',
     install_requires=[
       'numpy',
-      'pandas'
+      'pandas', 'scipy'
     ],
     include_package_data=True,
     zip_safe=False,

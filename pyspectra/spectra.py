@@ -3,11 +3,25 @@ Spectra
 ---------
 TODO:
 """
+
+import logging
 import warnings
+
 import numpy as np
 import pandas as pd
 
+logging.captureWarnings(True)
+
 __all__ = ["Spectra"]
+
+
+def _is_empty_slice(param):
+    return (
+            isinstance(param, slice)
+            and (param.start is None)
+            and (param.stop is None)
+            and (param.step is None)
+    )
 
 
 class Spectra:
@@ -20,7 +34,17 @@ class Spectra:
     --------
     """
 
-    def __init__(self, spc=None, wl=None, data=None, labels=None, keep_indexes=True, description=None):
+    # ----------------------------------------------------------------------
+    # Constructor
+
+    def __init__(
+            self,
+            spc=None,
+            wl=None,
+            data=None,
+            labels=None,
+            keep_indexes=True,
+    ):
 
         # Parse spc and wl
         if spc is None and wl is None:
@@ -47,7 +71,7 @@ class Spectra:
         # Prepare wl
         if wl is None:
             if isinstance(spc, pd.DataFrame) and isinstance(
-                spc.columns, pd.Float64Index
+                    spc.columns, pd.Float64Index
             ):
                 wl = spc.columns
             else:
@@ -71,22 +95,19 @@ class Spectra:
         # Parse labels
         if labels:
             if (
-                isinstance(labels, dict)
-                and labels.get("x", False)
-                and labels.get("y", False)
+                    isinstance(labels, dict)
+                    and labels.get("x", False)
+                    and labels.get("y", False)
             ):
                 self.labels = {"x": labels.x, "y": labels.y}
             elif (isinstance(labels, tuple) or isinstance(labels, list)) and (
-                len(labels) == 2
+                    len(labels) == 2
             ):
                 self.labels = {"x": labels[0], "y": labels[1]}
             else:
                 raise ValueError("Incorrect labels type!")
         else:
             self.labels = {"x": None, "y": None}
-
-        # Add description if provided
-        self.description = description
 
         # Checks
         # if self.spc.shape[1] != len(self.wl):
@@ -99,50 +120,17 @@ class Spectra:
         # Reset indexes to make them the same
         if not np.array_equal(np.array(self.spc.index), np.array(self.data.index)):
             if keep_indexes:
-                raise ValueError("spc and data have different indexes. Make them equal or set keep_indexes to False")
+                raise ValueError(
+                    "spc and data have different indexes. Make them equal or set keep_indexes to False"
+                )
             else:
                 self.spc.reset_index(drop=True, inplace=True)
                 self.data.reset_index(drop=True, inplace=True)
+        if not self.spc.index.is_unique:
+            warnings.warn("Index is not unique.")
 
-    @property
-    def wl(self):
-        """
-        Return wavelengths
-        """
-        return self.spc.columns.values
-
-    @property
-    def shape(self):
-        """
-        Return a tuple representing the dimensionality of the Spectra.
-        """
-        return self.spc.shape[0], self.spc.shape[1], self.data.shape[1]
-
-    @property
-    def nwl(self):
-        """
-        Return number of wavelength points.
-        """
-        return self.spc.shape[1]
-
-    @property
-    def nspc(self):
-        """
-        Return number of spectra.
-        """
-        return self.spc.shape[0]
-
-    def copy(self):
-        return Spectra(
-            spc = self.spc.copy(),
-            data = self.data.copy()
-            )
-
-    def deepcopy(self):
-        return Spectra(
-            spc = self.spc.deepcopy(),
-            data = self.data.deepcopy()
-            )
+    # ----------------------------------------------------------------------
+    # Internal helpers
 
     def _parse_string_or_column_param(self, param):
         if isinstance(param, str) and (param in self.data.columns):
@@ -150,38 +138,292 @@ class Spectra:
         elif isinstance(param, pd.Series) and (param.shape[0] == self.nspc):
             return param
         elif (
-            isinstance(param, np.ndarray)
-            and (param.ndim == 1)
-            and (param.shape[0] == self.nspc)
+                isinstance(param, np.ndarray)
+                and (param.ndim == 1)
+                and (param.shape[0] == self.nspc)
         ):
             return pd.Series(param)
         elif isinstance(param, (list, tuple)) and (len(param) == self.nspc):
             return pd.Series(param)
         else:
             raise TypeError(
-                "Incorrect parameter. It must be either a string of a data column name or pd.Series / np.array / list / tuple of lenght equal to number of spectra."
+                "Incorrect parameter. It must be either a string of a data column name or pd.Series / np.array / list "
+                "/ tuple of lenght equal to number of spectra. "
             )
 
-    def _is_empty_slice(self, param):
-        return \
-            isinstance(param, slice) and \
-            (param.start is None) and \
-            (param.stop  is None) and \
-            (param.step  is None)
+    # ----------------------------------------------------------------------
+    # Properties for quick access
+
+    @property
+    def wl(self):
+        """Get wavelengths
+
+        """
+        return self.spc.columns.values
+
+    @property
+    def shape(self) -> tuple:
+        """A tuple representing the dimensionality of the Spectra
+
+        """
+        return self.spc.shape[0], self.spc.shape[1], self.data.shape[1]
+
+    @property
+    def nwl(self) -> int:
+        """Number of wavelength points
+
+        """
+        return self.spc.shape[1]
+
+    @property
+    def nspc(self) -> int:
+        """Number of spectra in the object
+
+        """
+        return self.spc.shape[0]
+
+    @property
+    def is_equally_spaced(self) -> bool:
+        """Are wavelength values equally spaced?
+
+        """
+        return len(np.unique(self.wl[1:] - self.wl[:-1])) == 1
+
+    # ----------------------------------------------------------------------
+    # Coping
+
+    def copy(self):
+        return Spectra(spc=self.spc.copy(), data=self.data.copy())
+
+    def deepcopy(self):
+        return Spectra(spc=self.spc.deepcopy(), data=self.data.deepcopy())
+
+    # ----------------------------------------------------------------------
+    # Pre-processing
+
+    @property
+    def baseline(self):
+        from .baseline import SpectraBaselineMethods
+        return SpectraBaselineMethods(self)
+
+    def smooth(self, how, w, inplace=False, **kwargs):
+        """ TODO: Move to sub-module like baseline """
+        if not (w % 2):
+            raise ValueError("The window size must be an odd number.")
+        if w < 3:
+            raise ValueError("The window size is too small.")
+        if self.nwl < w:
+            raise ValueError("The window size is bigger than number of wl points.")
+
+        if how == "savgol":
+            from scipy.signal import savgol_filter
+
+            if not self.is_equally_spaced:
+                warnings.warn("Wavelengths are not equally spaced. Current "
+                              "Savitzky-Golay implementation assumes "
+                              "wavelengths to be equally spaced, this might "
+                              "lead to (usually minor) mistakes in result")
+
+            newspc = pd.DataFrame(
+                savgol_filter(
+                    self.spc.values, w, **kwargs, axis=1, mode="constant", cval=np.nan
+                ),
+                columns=self.spc.columns,
+            )
+        elif how == "mean":
+            newspc = self.spc.rolling(w, axis=1, center=True).mean()
+        elif how == "median":
+            newspc = self.spc.rolling(w, axis=1, center=True).median()
+        elif callable(how):
+            newspc = self.spc.rolling(w, axis=1, center=True).apply(how, raw=True)
+
+        if inplace:
+            self.spc = newspc
+            return self
+        return Spectra(spc=newspc, data=self.data)
+
+    def outliers(self, how="iqr", out="bool", iqr_width=1.5, **kwargs):
+        if how == "iqr":
+            q1 = self.spc.quantile(q=0.25, **kwargs)
+            q3 = self.spc.quantile(q=0.75, **kwargs)
+            iqr = q3 - q1
+            lower_bound = q1 - iqr_width * iqr
+            upper_bound = q3 + iqr_width * iqr
+            is_outlier = ~(
+                self.spc.apply(lambda x: x.between(lower_bound, upper_bound), axis=1)
+                    .all(axis=1)
+                    .values
+            )
+        else:
+            raise ValueError("Unknown type of outliers detection.")
+        # Prepare output according to format in `out`
+        if out == "bool":
+            return is_outlier
+        elif out == "label":
+            return self.spc.index[is_outlier].values
+        elif out == "index":
+            return np.where(is_outlier)
+        else:
+            raise ValueError("Unknown output format.")
+
+    def approx_na(self, inplace=False, **kwargs):
+        kwargs.pop("axis", None)
+        method = kwargs.pop("method", "index")
+        if inplace:
+            self.spc.interpolate(method=method, axis=1, inplace=True, **kwargs)
+        else:
+            result = self.copy()
+            result.spc.interpolate(method=method, axis=1, inplace=True, **kwargs)
+            return result
+
+    # ----------------------------------------------------------------------
+    # Get and set items
+
+    def __setitem__(self, given, value):
+        if (type(given) == tuple) and (len(given) == 3):
+            rows, cols, wls = (
+                [x]
+                if (np.size(x) == 1) and (not isinstance(x, (slice, list, tuple)))
+                else x
+                for x in given
+            )
+            if _is_empty_slice(cols) and not _is_empty_slice(wls):
+                idx = pd.IndexSlice
+                self.spc.loc[rows, idx[wls]] = value
+            elif not _is_empty_slice(cols) and _is_empty_slice(wls):
+                self.data.loc[rows, cols] = value
+            else:
+                raise ValueError(
+                    "Incorrect subset value for assignment. Either of data columns for wavelengths indexes must be `:`"
+                )
+        else:
+            raise ValueError(
+                "Incorrect subset value. Provide 3 values in format <row, column, wl>."
+            )
+
+    def __getitem__(self, given):
+        logging.debug(f"Trying to get item by {given}")
+        if (type(given) == tuple) and (len(given) == 3):
+            rows, cols, wls = (
+                [x]
+                if (np.size(x) == 1) and (not isinstance(x, (slice, list, tuple)))
+                else x
+                for x in given
+            )
+            logging.debug(f"  Rows selector is {rows}")
+            logging.debug(f"  Data columns selector is {cols}")
+            logging.debug(f"  Spectra wavelength range is {wls}")
+            idx = pd.IndexSlice
+            return Spectra(
+                spc=self.spc.loc[rows, idx[wls]], data=self.data.loc[rows, cols]
+            )
+        else:
+            raise ValueError(
+                "Incorrect subset value. Provide 3 values in format <row:column:wl>."
+            )
+
+    # ----------------------------------------------------------------------
+
+    def reset_index(self, drop=False, inplace=False):
+        if inplace:
+            self.spc.reset_index(drop=True, inplace=True)
+            self.data.reset_index(drop=drop, inplace=True)
+        else:
+            result = self.copy()
+            result.spc.reset_index(drop=True, inplace=True)
+            result.data.reset_index(drop=drop, inplace=True)
+            return result
+
+    # ----------------------------------------------------------------------
+    # Arithmetic operations +, -, *, /, **, abs, round, ceil, etc.
+
+    def __add__(self, other):
+        return Spectra(spc=self.spc.values.__add__(other), wl=self.wl, data=self.data)
+
+    def __sub__(self, other):
+        if isinstance(other, type(self)):
+            return Spectra(
+                spc=self.spc.values.__sub__(other.spc.values),
+                wl=self.wl,
+                data=self.data,
+            )
+        else:
+            return Spectra(
+                spc=self.spc.values.__sub__(other.spc.values),
+                wl=self.wl,
+                data=self.data,
+            )
+
+    def __mul__(self, other):
+        return Spectra(spc=self.spc.values.__mul__(other), wl=self.wl, data=self.data)
+
+    def __truediv__(self, other):
+        return Spectra(
+            spc=self.spc.values.__truediv__(other), wl=self.wl, data=self.data
+        )
+
+    def __pow__(self, other):
+        return Spectra(spc=self.spc.values.__pow__(other), wl=self.wl, data=self.data)
+
+    def __radd__(self, other):
+        return Spectra(spc=self.spc.values.__radd__(other), wl=self.wl, data=self.data)
+
+    def __rsub__(self, other):
+        return Spectra(spc=self.spc.values.__rsub__(other), wl=self.wl, data=self.data)
+
+    def __rmul__(self, other):
+        return Spectra(spc=self.spc.values.__rmul__(other), wl=self.wl, data=self.data)
+
+    def __rtruediv__(self, other):
+        return Spectra(
+            spc=self.spc.values.__rtruediv__(other), wl=self.wl, data=self.data
+        )
+
+    def __iadd__(self, other):
+        return Spectra(spc=self.spc.values.__iadd__(other), wl=self.wl, data=self.data)
+
+    def __isub__(self, other):
+        return Spectra(spc=self.spc.values.__isub__(other), wl=self.wl, data=self.data)
+
+    def __imul__(self, other):
+        return Spectra(spc=self.spc.values.__imul__(other), wl=self.wl, data=self.data)
+
+    def __itruediv__(self, other):
+        return Spectra(
+            spc=self.spc.values.__itruediv__(other), wl=self.wl, data=self.data
+        )
+
+    def __abs__(self):
+        return Spectra(spc=self.spc.values.__abs__(other), wl=self.wl, data=self.data)
+
+    def __round__(self, n):
+        return Spectra(spc=self.spc.values.__round__(n), wl=self.wl, data=self.data)
+
+    def __floor__(self):
+        return Spectra(spc=self.spc.values.__floor__(), wl=self.wl, data=self.data)
+
+    def __ceil__(self):
+        return Spectra(spc=self.spc.values.__ceil__(), wl=self.wl, data=self.data)
+
+    def __trunc__(self):
+        return Spectra(spc=self.spc.values.__trunc__(), wl=self.wl, data=self.data)
+
+    # ----------------------------------------------------------------------
+    # Plots
 
     def plot(
-        self,
-        columns=None,
-        rows=None,
-        color=None,
-        palette=None,
-        fig=None,
-        sharex=False,
-        sharey=False,
-        legend_params={},
-        title_params={},
-        **kwargs
-        ):
+            self,
+            columns=None,
+            rows=None,
+            color=None,
+            palette=None,
+            fig=None,
+            sharex=False,
+            sharey=False,
+            legend_params={},
+            title_params={},
+            **kwargs,
+    ):
         import matplotlib.pyplot as plt
         from matplotlib.lines import Line2D
 
@@ -192,13 +434,23 @@ class Spectra:
             row = self._parse_string_or_column_param(
                 rows
             ).cat.remove_unused_categories()
-        row = row.cat.add_categories("NA").fillna("NA").cat.remove_unused_categories().reset_index(drop=True)
+        row = (
+            row.cat.add_categories("NA")
+                .fillna("NA")
+                .cat.remove_unused_categories()
+                .reset_index(drop=True)
+        )
 
         if columns is None:
             col = pd.Series(np.repeat("dummy", self.nspc), dtype="category")
         else:
             col = self._parse_string_or_column_param(columns)
-        col = col.cat.add_categories("NA").fillna("NA").cat.remove_unused_categories().reset_index(drop=True)
+        col = (
+            col.cat.add_categories("NA")
+                .fillna("NA")
+                .cat.remove_unused_categories()
+                .reset_index(drop=True)
+        )
 
         nrows = len(row.cat.categories)
         ncols = len(col.cat.categories)
@@ -209,10 +461,10 @@ class Spectra:
         else:
             labels = (
                 self._parse_string_or_column_param(color)
-                .astype('category')
-                .cat.add_categories("NA")
-                .fillna("NA")
-                .cat.remove_unused_categories()
+                    .astype("category")
+                    .cat.add_categories("NA")
+                    .fillna("NA")
+                    .cat.remove_unused_categories()
             )
         ncolors = len(labels.cat.categories)
         if palette is None:
@@ -263,235 +515,7 @@ class Spectra:
                     ax[i, j].set_ylabel(str(vrow), **title_params)
         return fig
 
-    def smooth(self, how, w, inplace=False, **kwargs):
-        if not (w % 2):
-            raise ValueError("The window size must be an odd number.")
-        if w < 3:
-            raise ValueError("The window size is too small.")
-        if self.nwl < w:
-            raise ValueError("The window size is bigger than number of wl points.")
-
-        if how == "savgol":
-            from scipy.signal import savgol_filter
-
-            newspc = pd.DataFrame(
-                savgol_filter(
-                    self.spc.values, w, **kwargs, axis=1, mode="constant", cval=np.nan
-                ),
-                columns=self.spc.columns,
-            )
-        elif how == "mean":
-            newspc = self.spc.rolling(w, axis=1, center=True).mean()
-        elif how == "median":
-            newspc = self.spc.rolling(w, axis=1, center=True).median()
-        elif collable(how):
-            newspc = self.spc.rolling(w, axis=1, center=True).apply(how, raw=True)
-
-        if inplace:
-            self.spc = newspc
-            return self
-        return Spectra(spc=newspc, data=self.data)
-
-    def outliers(self, how="iqr", out="bool", iqr_width=1.5, **kwargs):
-        if how == "iqr":
-            q1 = self.spc.quantile(q=0.25, **kwargs)
-            q3 = self.spc.quantile(q=0.75, **kwargs)
-            iqr = q3 - q1
-            lower_bound = q1 - iqr_width * iqr
-            upper_bound = q3 + iqr_width * iqr
-            is_outlier = ~(
-                self.spc.apply(lambda x: x.between(lower_bound, upper_bound), axis=1)
-                .all(axis=1)
-                .values
-            )
-        else:
-            raise ValueError("Unknown type of outliers detection.")
-        # Prepare output according to format in `out`
-        if out == "bool":
-            return is_outlier
-        elif out == "label":
-            return self.spc.index[is_outlier].values
-        elif out == "index":
-            return np.where(is_outlier)
-        else:
-            raise ValueError("Unknown output format.")
-
-    def approx_na(self, inplace=False, **kwargs):
-        kwargs.pop('axis', None)
-        method = kwargs.pop('method', 'index')
-        if inplace:
-            self.spc.interpolate(method=method, axis=1, inplace=True, **kwargs)
-        else:
-            result = self.copy()
-            result.spc.interpolate(method=method, axis=1, inplace=True, **kwargs)
-            return result
-
-    def __setitem__(self, given, value):
-        if (type(given) == tuple) and (len(given) == 3):
-            rows, cols, wls = (
-                [x]
-                if (np.size(x) == 1) and (not isinstance(x, (slice, list, tuple)))
-                else x
-                for x in given
-            )
-            if self._is_empty_slice(cols) and not self._is_empty_slice(wls):
-                idx = pd.IndexSlice
-                self.spc.loc[rows, idx[wls]] = value
-            elif not self._is_empty_slice(cols) and self._is_empty_slice(wls):
-                self.data.loc[rows, cols] = value
-            else:
-                raise ValueError(
-                    "Incorrect subset value for assignment. Either of data columns for wavelengths indexes must be `:`"
-                )
-        else:
-            raise ValueError(
-                "Incorrect subset value. Provide 3 values in format <row, column, wl>."
-            )
-
-    def __getitem__(self, given):
-        if (type(given) == tuple) and (len(given) == 3):
-            rows, cols, wls = (
-                [x]
-                if (np.size(x) == 1) and (not isinstance(x, (slice, list, tuple)))
-                else x
-                for x in given
-            )
-            idx = pd.IndexSlice
-            return Spectra(
-                spc=self.spc.loc[rows, idx[wls]], data=self.data.loc[rows, cols]
-            )
-        else:
-            raise ValueError(
-                "Incorrect subset value. Provide 3 values in format <row:column:wl>."
-            )
+    # ----------------------------------------------------------------------
 
     def __str__(self):
         return str(self.shape)
-
-    # -----------------------------------------------------------------------
-    # Arithmetic operations +, -, *, /, **, abs, round, ceil, etc.
-    def __add__(self, other):
-        return Spectra(
-            spc=self.spc.values.__add__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __sub__(self, other):
-        return Spectra(
-            spc=self.spc.values.__sub__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __mul__(self, other):
-        return Spectra(
-            spc=self.spc.values.__mul__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __truediv__(self, other):
-        return Spectra(
-            spc=self.spc.values.__truediv__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __pow__(self, other):
-        return Spectra(
-            spc=self.spc.values.__pow__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __radd__(self, other):
-        return Spectra(
-            spc=self.spc.values.__radd__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __rsub__(self, other):
-        return Spectra(
-            spc=self.spc.values.__rsub__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __rmul__(self, other):
-        return Spectra(
-            spc=self.spc.values.__rmul__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __rtruediv__(self, other):
-        return Spectra(
-            spc=self.spc.values.__rtruediv__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __iadd__(self, other):
-        return Spectra(
-            spc=self.spc.values.__iadd__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __isub__(self, other):
-        return Spectra(
-            spc=self.spc.values.__isub__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __imul__(self, other):
-        return Spectra(
-            spc=self.spc.values.__imul__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __itruediv__(self, other):
-        return Spectra(
-            spc=self.spc.values.__itruediv__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __abs__(self):
-        return Spectra(
-            spc=self.spc.values.__abs__(other),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __round__(self, n):
-        return Spectra(
-            spc=self.spc.values.__round__(n),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __floor__(self):
-        return Spectra(
-            spc=self.spc.values.__floor__(),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __ceil__(self):
-        return Spectra(
-            spc=self.spc.values.__ceil__(),
-            wl=self.wl,
-            data=self.data
-            )
-
-    def __trunc__(self):
-        return Spectra(
-            spc=self.spc.values.__trunc__(),
-            wl=self.wl,
-            data=self.data
-            )

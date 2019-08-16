@@ -1,10 +1,12 @@
 """TODO: Docstring"""
 
 import warnings
+
 import numpy as np
 import pandas as pd
-from .spectra import Spectra
+
 from .reshape import rbind
+from .spectra import Spectra
 
 __all__ = ["read_txt", "read_bwtek", "read_fileset"]
 
