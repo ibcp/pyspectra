@@ -1,0 +1,34 @@
+[tool.poetry]
+name = "pyspectra"
+version = "0.1.0"
+description = "A python package for working with spectral data"
+authors = ["Rustam Guliev <glvrst@gmail.com>"]
+license = "GPL-3.0-or-later"
+readme = "README.md"
+keywords = "spectroscopy Raman IR signal processing"
+classifiers = [
+   'Development Status :: 1 - Planning',
+   'Programming Language :: Python :: 3 :: Only',
+   'Operating System :: OS Independent',
+   'Intended Audience :: Science/Research',
+   'Topic :: Scientific/Engineering'
+]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+numpy = "^1.16"
+pandas = "^0.24"
+scipy = "^1.2"
+matplotlib = "^3.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.1"
+pre-commit = "^1.17"
+flake8 = "^3.7"
+black = "^18.9b0"
+mypy = "^0.700.0"
+mypy-extensions = "^0.4"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
