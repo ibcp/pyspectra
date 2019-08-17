@@ -6,7 +6,7 @@ TODO:
 
 import logging
 import warnings
-from typing import Any, Optional, Union, Tuple, List, Callable, NoReturn
+from typing import Any, Optional, Union, Tuple, List, Callable
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,9 @@ __all__ = ["Spectra"]
 
 
 def _is_empty_slice(param: Any) -> bool:
+    """Is `param` an empty slice
+
+    """
     return (
         isinstance(param, slice)
         and (param.start is None)
