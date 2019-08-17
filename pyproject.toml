@@ -5,7 +5,7 @@ description = "A python package for working with spectral data"
 authors = ["Rustam Guliev <glvrst@gmail.com>"]
 license = "GPL-3.0-or-later"
 readme = "README.md"
-keywords = "spectroscopy Raman IR signal processing"
+keywords = ["spectroscopy", "Raman", "IR", "signal", "processing"]
 classifiers = [
    'Development Status :: 1 - Planning',
    'Programming Language :: Python :: 3 :: Only',
