@@ -3,7 +3,7 @@ from scipy import sparse
 from scipy.sparse.linalg import spsolve
 
 
-def vector_als(y: np.array, lam: float, p: float, niter=10):
+def vector_als(y: np.array, lam: float, p: float, niter: int = 10) -> np.array:
     """Baseline correction based on Asymmetric Least Squares [1]
 
     A Quote from the article:
@@ -24,12 +24,13 @@ def vector_als(y: np.array, lam: float, p: float, niter=10):
         then residual is weighted as `p`*`residual`; otherwise (baseline
         is above the signal) `1-p`*`residual`.
     niter : int, optional
-        Number of iterations. Default is 10, as described in the original article.
+        Number of iterations. Default is 10, as described in the original
+        article.
 
     Returns
     -------
-    TYPE
-        Description
+    np.array
+        Vector of baseline values
 
     Footnotes
     ---------

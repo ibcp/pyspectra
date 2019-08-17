@@ -1,1 +1,1 @@
-from .baseline import *
+from .baseline import SpectraBaselineMethods

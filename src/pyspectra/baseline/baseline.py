@@ -20,20 +20,31 @@ __all__ = ["SpectraBaselineMethods"]
 class SpectraBaselineMethods:
     """TODO: docstring"""
 
-    def __init__(self, obj: Spectra):
+    def __init__(self, obj: Spectra) -> None:
         self.obj = obj
 
-    def als(self, lam: float, p: float, niter: int = 10, remove: bool = False, inplace: bool = False):
+    def als(
+        self,
+        lam: float,
+        p: float,
+        niter: int = 10,
+        remove: bool = False,
+        inplace: bool = False,
+    ) -> Spectra:
         """ TODO: Import docstring from vector version """
         from .als import vector_als
 
         if not self.obj.is_equally_spaced:
-            warnings.warn("Wavelengths are not equally spaced. Current "
-                          "Asymmetric Least Squares implementation assumes "
-                          "wavelengths to be equally spaced, this might "
-                          "lead to (usually minor) mistakes in result")
+            warnings.warn(
+                "Wavelengths are not equally spaced. Current "
+                "Asymmetric Least Squares implementation assumes "
+                "wavelengths to be equally spaced, this might "
+                "lead to (usually minor) mistakes in result"
+            )
 
-        bl = np.apply_along_axis(vector_als, 1, self.obj.spc.values, lam=lam, p=p, niter=niter)
+        bl = np.apply_along_axis(
+            vector_als, 1, self.obj.spc.values, lam=lam, p=p, niter=niter
+        )
         if remove:
             bl = self.obj.spc.values - bl
         if inplace:

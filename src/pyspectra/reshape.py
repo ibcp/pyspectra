@@ -1,13 +1,21 @@
 """TODO: Docstring"""
 
+from typing import Optional
+
 import numpy as np
 import pandas as pd
+
 from .spectra import Spectra
 
 __all__ = ["rbind"]
 
 
-def rbind(*objs, join="strict", data_join=None, spc_join=None):
+def rbind(
+    *objs: Spectra,
+    join: str = "strict",
+    data_join: Optional[str] = None,
+    spc_join: Optional[str] = None
+) -> Spectra:
     """TODO: Docstring"""
     if data_join is None:
         data_join = join
@@ -24,7 +32,8 @@ def rbind(*objs, join="strict", data_join=None, spc_join=None):
         for obj in objs:
             if not np.array_equal(obj.wl, objs[0].wl):
                 raise ValueError(
-                    "Strict join is not possible: Spectra have different wavelenghts."
+                    "Strict join is not possible: Spectra have different "
+                    "wavelengths. "
                 )
         spc_join = "outer"
 
