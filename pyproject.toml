@@ -2,9 +2,11 @@
 name = "pyspectra"
 version = "0.1.0"
 description = "A python package for working with spectral data"
-authors = ["Rustam Guliev <glvrst@gmail.com>"]
 license = "GPL-3.0-or-later"
+authors = ["Rustam Guliev <glvrst@gmail.com>"]
 readme = "README.md"
+homepage = "https://github.com/ibcp/pyspectra"
+repository = "https://github.com/ibcp/pyspectra"
 keywords = ["spectroscopy", "Raman", "IR", "signal", "processing"]
 classifiers = [
    'Development Status :: 1 - Planning',
@@ -13,6 +15,7 @@ classifiers = [
    'Intended Audience :: Science/Research',
    'Topic :: Scientific/Engineering'
 ]
+
 
 [tool.poetry.dependencies]
 python = "^3.6"
