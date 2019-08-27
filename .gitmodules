@@ -1,0 +1,3 @@
+[submodule "tests/spectra_files"]
+	path = tests/spectra_files
+	url = https://github.com/ibcp/spectra-file-examples.git
