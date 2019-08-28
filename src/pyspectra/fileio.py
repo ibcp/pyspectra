@@ -9,7 +9,7 @@ import pandas as pd
 from .reshape import rbind
 from .spectra import Spectra
 
-__all__ = ["read_txt", "read_bwtek", "read_fileset"]
+__all__ = ["read_txt", "read_bwtek", "read_filelist"]
 
 
 def read_txt(path: str, **kwargs: Any) -> Spectra:
@@ -146,7 +146,7 @@ def read_bwtek(
     )
 
 
-def read_fileset(
+def read_filelist(
     files: List[str],
     callback: Callable[..., Spectra] = read_txt,
     join: str = "strict",
