@@ -91,9 +91,7 @@ class Spectra:
         self.spc = spc
 
         # Parse data
-        if data is None:
-            data = pd.DataFrame(index=self.spc.index)
-        elif isinstance(data, dict):
+        if not isinstance(data, pd.DataFrame):
             data = pd.DataFrame(data, index=self.spc.index)
         self.data = data
 
