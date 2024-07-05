@@ -1,4 +1,1 @@
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/ea2a9ce2757143569aacd001fb6213bc)](https://www.codacy.com/app/rguliev/pyspectra?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=ibcp/pyspectra&amp;utm_campaign=Badge_Grade)
-
-# pyspectra
-Python package for working with spectral data
+[![Project Status: Moved to r-hyperspec/pyperspec – The project has been moved to a new location, and the version at that location should be considered authoritative.](https://www.repostatus.org/badges/latest/moved.svg)](https://www.repostatus.org/#moved) to [r-hyperspec/pyperspec]([http://example.com](https://github.com/r-hyperspec/pyperspec))
